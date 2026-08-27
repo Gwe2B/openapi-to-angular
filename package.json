@@ -1,6 +1,6 @@
 {
   "name": "openapi-to-angular",
-  "version": "0.1.0-a1",
+  "version": "0.1.0",
   "description": "CLI to generate Angular code from OpenAPI specifications",
   "type": "module",
   "bin": {
