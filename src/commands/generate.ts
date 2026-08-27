@@ -21,19 +21,56 @@ interface GenerateOptions {
 export function registerGenerateCommand(program: Command): void {
   program
     .command('generate')
-    .description('Generate an Angular service and models from an OpenAPI spec')
-    .argument('<input>', 'path or URL to the OpenAPI spec')
-    .option('-w, --ws <dir>', 'workspace root for the generated files and folders', '.')
-    .option('-s, --service-name <name>', 'Angular service class name')
-    .option('-m, --models-folder <dir>', 'output folder for generated models, relative to --ws', 'models')
-    .option('--service', 'use a bare @Injectable() decorator instead of @Injectable({ providedIn: \'root\' })')
+    .summary('Generate an Angular service and models from an OpenAPI spec')
+    .description(
+      [
+        'Generate an Angular HttpClient service and TypeScript models from an OpenAPI (3.x) spec.',
+        '',
+        'One TypeScript model file is written per "components.schemas" entry (plus a barrel index.ts), and a single Angular service class is written with one method per OpenAPI operation, typed against the generated models.',
+      ].join('\n'),
+    )
+    .argument('<input>', 'path or URL to the OpenAPI spec (JSON or YAML)')
+    .option('-w, --ws <dir>', 'workspace root where all generated files and folders are written', '.')
+    .option(
+      '-s, --service-name <name>',
+      "Angular service class name (default: derived from the spec's info.title, " +
+        "or the input file name; a 'Service' suffix is appended automatically if missing)",
+    )
+    .option(
+      '-m, --models-folder <dir>',
+      'folder for generated model files, relative to --ws (a barrel index.ts is also written there)',
+      'models',
+    )
+    .option(
+      '--service',
+      "emit a bare @Injectable() decorator instead of @Injectable({ providedIn: 'root' }); " +
+        'typically paired with --module to register the service by hand. Cannot be combined with --providedIn',
+    )
     .option(
       '--providedIn <value>',
-      "value for the @Injectable providedIn option (e.g. 'root', 'platform', 'any', or 'null')",
+      "value passed to @Injectable's providedIn option: 'root' (default), 'platform', 'any', " +
+        "any other string, or the literal 'null'. Cannot be combined with --service",
     )
     .option(
       '-M, --module <path>',
-      'add the generated service to the providers array of this module/component/directive file',
+      'path to an existing @NgModule/@Component/@Directive file; the generated service is added ' +
+        'to its providers array (and imported) in place',
+    )
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ openapi-to-angular generate ./spec.yaml
+  $ openapi-to-angular generate ./spec.yaml --ws ./src/app/api -s PetStore -m models
+  $ openapi-to-angular generate https://api.example.com/openapi.json --providedIn platform
+  $ openapi-to-angular generate ./spec.yaml --service -M ./src/app/app.module.ts
+
+Notes:
+  - <input> may be a local file path or an http(s) URL, in JSON or YAML.
+  - --service and --providedIn are mutually exclusive.
+  - --module supports @NgModule, @Component, and @Directive targets (not @Pipe, which
+    has no "providers" metadata field in Angular).
+`,
     )
     .action(async (input: string, options: GenerateOptions) => {
       if (options.service && options.providedIn !== undefined) {
