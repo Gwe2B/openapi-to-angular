@@ -2,6 +2,28 @@
 
 CLI to generate Angular code from an OpenAPI specification.
 
+## Installing
+
+Install straight from a GitHub release tag — no npm registry publish involved. npm clones the
+repo, builds it locally (via the `prepare` script), and links the `openapi-to-angular` command:
+
+```bash
+npm install -g git+https://github.com/Gwe2B/openapi-to-angular.git#v0.1.0-a1
+```
+
+Then run it from anywhere:
+
+```bash
+openapi-to-angular generate ./spec.yaml
+```
+
+Swap `v0.1.0-a1` for whichever tag you want (see [Releases](https://github.com/Gwe2B/openapi-to-angular/releases)),
+or use `#main` to track the latest commit on `main`.
+
+> Some npm setups gate lifecycle scripts (e.g. a corporate `allow-scripts` policy). If the install
+> succeeds but `openapi-to-angular` fails with a "Cannot find module" error, the `prepare` build was
+> likely blocked — allow it for this package, or run `npm run build` manually after cloning.
+
 ## Development
 
 ```bash
@@ -34,3 +56,17 @@ openapi-to-angular generate <input> [options]
 - `-M, --module <path>` — add the generated service to the `providers` array of the `@NgModule`/`@Component`/`@Directive` class found in this file, adding the import if needed. The file is edited in place.
 
 For each `components.schemas` entry, a TypeScript model file is generated in the models folder (plus a barrel `index.ts`). One Angular service is generated at the workspace root, with one method per OpenAPI operation, typed against the generated models and using `HttpClient`.
+
+## Releasing
+
+No build artifacts to attach, no npm registry — a release is just a tagged commit on `main` plus a
+GitHub Release pointing at it:
+
+```bash
+npm version patch   # or minor / major — runs lint+typecheck+test first, bumps package.json,
+                     # commits "vX.Y.Z", and creates a matching git tag
+git push && git push --tags
+gh release create vX.Y.Z --title vX.Y.Z --generate-notes
+```
+
+That's it — the tag is what people install from (see [Installing](#installing)).

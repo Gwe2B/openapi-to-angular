@@ -1,6 +1,6 @@
 {
   "name": "openapi-to-angular",
-  "version": "0.1.0",
+  "version": "0.1.0-a1",
   "description": "CLI to generate Angular code from OpenAPI specifications",
   "type": "module",
   "bin": {
@@ -17,7 +17,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "preversion": "npm run lint && npm run typecheck && npm test",
+    "prepare": "npm run build"
   },
   "keywords": [
     "openapi",
@@ -25,8 +27,16 @@
     "cli",
     "codegen"
   ],
-  "author": "",
+  "author": "Gwenaël",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gwe2B/openapi-to-angular.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Gwe2B/openapi-to-angular/issues"
+  },
+  "homepage": "https://github.com/Gwe2B/openapi-to-angular#readme",
   "dependencies": {
     "commander": "^13.1.0",
     "js-yaml": "^4.1.0",
