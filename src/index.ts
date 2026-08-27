@@ -1,3 +1,7 @@
 import { runCli } from './cli.js';
 
-runCli(process.argv);
+runCli(process.argv).catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${message}`);
+  process.exitCode = 1;
+});

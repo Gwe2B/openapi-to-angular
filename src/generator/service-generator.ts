@@ -15,11 +15,15 @@ import { resolveTypeExpression } from './type-mapper.js';
 const HTTP_METHODS: HttpMethod[] = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'];
 const BODYLESS_METHODS = new Set<HttpMethod>(['get', 'delete', 'head', 'options']);
 
+/** `bare` renders `@Injectable()`; `providedIn` renders `@Injectable({ providedIn: <value> })`, `null` becoming the literal `null`. */
+export type InjectableConfig = { kind: 'bare' } | { kind: 'providedIn'; value: string | null };
+
 export interface ServiceGenerationOptions {
   className: string;
   filePath: string;
   modelsDir: string;
   modelRegistry: Map<string, ModelRegistryEntry>;
+  injectable: InjectableConfig;
 }
 
 interface CollectedOperation {
@@ -51,7 +55,14 @@ export async function generateService(doc: OpenApiDocument, options: ServiceGene
     });
 
   const basePath = doc.servers?.[0]?.url ?? '';
-  const content = renderServiceFile(options.className, basePath, modelImports, methods, usesParamsHelper);
+  const content = renderServiceFile(
+    options.className,
+    basePath,
+    modelImports,
+    methods,
+    usesParamsHelper,
+    options.injectable,
+  );
 
   await mkdir(path.dirname(options.filePath), { recursive: true });
   await writeFile(options.filePath, content, 'utf-8');
@@ -178,6 +189,7 @@ function renderServiceFile(
   modelImports: string[],
   methods: string[],
   usesParamsHelper: boolean,
+  injectable: InjectableConfig,
 ): string {
   const imports = [
     `import { HttpClient } from '@angular/common/http';`,
@@ -189,7 +201,7 @@ function renderServiceFile(
   const parts: string[] = [
     imports.join('\n'),
     '',
-    `@Injectable({ providedIn: 'root' })`,
+    renderInjectableDecorator(injectable),
     `export class ${className} {`,
     `  private readonly basePath = '${basePath}';`,
     '',
@@ -205,6 +217,14 @@ function renderServiceFile(
   parts.push('}', '');
 
   return parts.join('\n');
+}
+
+function renderInjectableDecorator(injectable: InjectableConfig): string {
+  if (injectable.kind === 'bare') {
+    return '@Injectable()';
+  }
+  const value = injectable.value === null ? 'null' : `'${injectable.value}'`;
+  return `@Injectable({ providedIn: ${value} })`;
 }
 
 function renderParamsHelper(): string {

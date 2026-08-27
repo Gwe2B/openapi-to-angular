@@ -14,6 +14,6 @@ export function createProgram(): Command {
   return program;
 }
 
-export function runCli(argv: string[]): void {
-  createProgram().parse(argv);
+export async function runCli(argv: string[]): Promise<void> {
+  await createProgram().parseAsync(argv);
 }

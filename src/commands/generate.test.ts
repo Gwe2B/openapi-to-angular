@@ -59,6 +59,7 @@ describe('generate pipeline', () => {
       filePath: servicePath,
       modelsDir,
       modelRegistry: buildModelRegistry(spec),
+      injectable: { kind: 'providedIn', value: 'root' },
     });
 
     const modelContent = await readFile(path.join(modelsDir, 'pet.model.ts'), 'utf-8');
