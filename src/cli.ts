@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { registerExtractCommand } from './commands/extract.js';
 import { registerGenerateCommand } from './commands/generate.js';
 
 export function createProgram(): Command {
@@ -10,6 +11,7 @@ export function createProgram(): Command {
     .version('0.1.0');
 
   registerGenerateCommand(program);
+  registerExtractCommand(program);
 
   return program;
 }

@@ -12,8 +12,8 @@ import { toCamelCase, toPascalCase } from '../utils/naming.js';
 import type { ModelRegistryEntry } from './model-registry.js';
 import { resolveTypeExpression } from './type-mapper.js';
 
-const HTTP_METHODS: HttpMethod[] = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'];
-const BODYLESS_METHODS = new Set<HttpMethod>(['get', 'delete', 'head', 'options']);
+export const HTTP_METHODS: HttpMethod[] = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'];
+export const BODYLESS_METHODS = new Set<HttpMethod>(['get', 'delete', 'head', 'options']);
 
 /** `bare` renders `@Injectable()`; `providedIn` renders `@Injectable({ providedIn: <value> })`, `null` becoming the literal `null`. */
 export type InjectableConfig = { kind: 'bare' } | { kind: 'providedIn'; value: string | null };

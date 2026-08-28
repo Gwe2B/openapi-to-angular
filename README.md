@@ -57,6 +57,24 @@ openapi-to-angular generate <input> [options]
 
 For each `components.schemas` entry, a TypeScript model file is generated in the models folder (plus a barrel `index.ts`). One Angular service is generated at the workspace root, with one method per OpenAPI operation, typed against the generated models and using `HttpClient`.
 
+### Reverse: `extract`
+
+```bash
+openapi-to-angular extract <services...> [options]
+```
+
+The opposite of `generate`: reads one or more Angular `HttpClient` service files and writes out an OpenAPI (3.x)
+document. A method becomes an operation only if it actually calls `HttpClient` (`this.http.get/post/put/patch/delete/...`);
+methods that don't (private helpers, computed getters, etc.) are skipped. A leading TSDoc comment on a method becomes
+that operation's `description`. Types used for path/query parameters, request bodies, and response bodies are resolved
+into `components.schemas`, following relative imports into model files.
+
+- `<services...>` — one or more paths to Angular service `.ts` files
+- `-o, --output <file>` — output path for the generated spec (default: `openapi.yaml`)
+- `--title <title>` — `info.title` (default: derived from the first service's class name)
+- `--api-version <version>` — `info.version` (default: `1.0.0`)
+- `--format <format>` — `yaml` or `json` (default: inferred from `--output`'s extension)
+
 ## Releasing
 
 No build artifacts to attach, no npm registry — a release is just a tagged commit on `main` plus a

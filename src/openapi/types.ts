@@ -44,6 +44,7 @@ export interface ResponseObject {
 export interface OperationObject {
   operationId?: string;
   summary?: string;
+  description?: string;
   tags?: string[];
   parameters?: Array<ParameterObject | Ref>;
   requestBody?: RequestBodyObject | Ref;
