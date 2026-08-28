@@ -1,6 +1,6 @@
 {
   "name": "openapi-to-angular",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "CLI to generate Angular code from OpenAPI specifications",
   "type": "module",
   "bin": {
@@ -50,6 +50,7 @@
     "@typescript-eslint/eslint-plugin": "^8.19.0",
     "@typescript-eslint/parser": "^8.19.0",
     "eslint": "^9.17.0",
+    "generate-changelog": "^1.8.0",
     "tsx": "^4.19.2",
     "vitest": "^3.2.4"
   },
