@@ -51,9 +51,12 @@ openapi-to-angular generate <input> [options]
 - `-w, --ws <dir>` — workspace root for all generated files and folders (default: `.`)
 - `-s, --service-name <name>` — Angular service class name (default: derived from the spec's `info.title`, falling back to the input file name); a `Service` suffix is appended if missing
 - `-m, --models-folder <dir>` — output folder for generated models, relative to `--ws` (default: `models`)
-- `--service` — use a bare `@Injectable()` decorator instead of `@Injectable({ providedIn: 'root' })`. Mutually exclusive with `--providedIn`.
-- `--providedIn <value>` — value for the `@Injectable` `providedIn` option (default: `root`). Pass `null` for the literal `null`, or any other string (e.g. `platform`, `any`).
+- `--decorator <type>` — decorator style for the generated service: `injectable` (default) emits `@Injectable({ providedIn: ... })`; `service` emits `@Service()`. Mutually exclusive with `--providedIn`.
+- `--providedIn <value>` — value for the `@Injectable` `providedIn` option (default: `root`). Pass `null` for the literal `null`, or any other string (e.g. `platform`, `any`). Only applies when `--decorator` is `injectable`.
+- `--injection <pattern>` — dependency injection pattern for the generated service: `inject` (default) uses Angular's `inject()` function; `constructor` uses constructor-parameter injection.
 - `-M, --module <path>` — add the generated service to the `providers` array of the `@NgModule`/`@Component`/`@Directive` class found in this file, adding the import if needed. The file is edited in place.
+- `--no-doc` — do not emit a TSDoc comment above each generated method from the operation's OpenAPI `description` (TSDoc comments are emitted by default).
+- `--visibility` — add an explicit `public` modifier to generated methods, which TypeScript otherwise treats as implicit (default: off).
 
 For each `components.schemas` entry, a TypeScript model file is generated in the models folder (plus a barrel `index.ts`). One Angular service is generated at the workspace root, with one method per OpenAPI operation, typed against the generated models and using `HttpClient`.
 

@@ -1,9 +1,9 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { buildModelRegistry } from '../generator/model-registry.js';
 import { generateModels } from '../generator/model-generator.js';
-import type { InjectableConfig } from '../generator/service-generator.js';
+import type { InjectableConfig, InjectionPattern } from '../generator/service-generator.js';
 import { generateService } from '../generator/service-generator.js';
 import { wireServiceProvider } from '../generator/wire-module.js';
 import { loadOpenApiDocument } from '../openapi/load.js';
@@ -13,9 +13,12 @@ interface GenerateOptions {
   ws: string;
   serviceName?: string;
   modelsFolder: string;
-  service?: boolean;
+  decorator: 'injectable' | 'service';
   providedIn?: string;
+  injection: InjectionPattern;
   module?: string;
+  doc: boolean;
+  visibility: boolean;
 }
 
 export function registerGenerateCommand(program: Command): void {
@@ -41,20 +44,43 @@ export function registerGenerateCommand(program: Command): void {
       'folder for generated model files, relative to --ws (a barrel index.ts is also written there)',
       'models',
     )
-    .option(
-      '--service',
-      "emit a bare @Injectable() decorator instead of @Injectable({ providedIn: 'root' }); " +
-        'typically paired with --module to register the service by hand. Cannot be combined with --providedIn',
+    .addOption(
+      new Option(
+        '--decorator <type>',
+        "decorator style for the generated service: 'injectable' emits @Injectable({ providedIn: ... }); " +
+          "'service' emits @Service(). Cannot be combined with --providedIn",
+      )
+        .choices(['injectable', 'service'])
+        .default('injectable'),
     )
     .option(
       '--providedIn <value>',
       "value passed to @Injectable's providedIn option: 'root' (default), 'platform', 'any', " +
-        "any other string, or the literal 'null'. Cannot be combined with --service",
+        "any other string, or the literal 'null'. Only applies when --decorator is 'injectable'; " +
+        "cannot be combined with --decorator service",
+    )
+    .addOption(
+      new Option(
+        '--injection <pattern>',
+        "dependency injection pattern for the generated service: 'inject' uses Angular's inject() " +
+          "function (default); 'constructor' uses constructor-parameter injection",
+      )
+        .choices(['constructor', 'inject'])
+        .default('inject'),
     )
     .option(
       '-M, --module <path>',
       'path to an existing @NgModule/@Component/@Directive file; the generated service is added ' +
         'to its providers array (and imported) in place',
+    )
+    .option(
+      '--no-doc',
+      "do not emit a TSDoc comment above each generated method from the operation's OpenAPI description",
+    )
+    .option(
+      '--visibility',
+      "add an explicit 'public' modifier to generated methods (TypeScript treats it as implicit otherwise)",
+      false,
     )
     .addHelpText(
       'after',
@@ -63,18 +89,20 @@ Examples:
   $ openapi-to-angular generate ./spec.yaml
   $ openapi-to-angular generate ./spec.yaml --ws ./src/app/api -s PetStore -m models
   $ openapi-to-angular generate https://api.example.com/openapi.json --providedIn platform
-  $ openapi-to-angular generate ./spec.yaml --service -M ./src/app/app.module.ts
+  $ openapi-to-angular generate ./spec.yaml --decorator service
+  $ openapi-to-angular generate ./spec.yaml --injection constructor
+  $ openapi-to-angular generate ./spec.yaml --no-doc --visibility
 
 Notes:
   - <input> may be a local file path or an http(s) URL, in JSON or YAML.
-  - --service and --providedIn are mutually exclusive.
+  - --decorator service and --providedIn are mutually exclusive.
   - --module supports @NgModule, @Component, and @Directive targets (not @Pipe, which
     has no "providers" metadata field in Angular).
 `,
     )
     .action(async (input: string, options: GenerateOptions) => {
-      if (options.service && options.providedIn !== undefined) {
-        throw new Error('Options --service and --providedIn cannot be used together.');
+      if (options.decorator === 'service' && options.providedIn !== undefined) {
+        throw new Error('Options --decorator service and --providedIn cannot be used together.');
       }
 
       const doc = await loadOpenApiDocument(input);
@@ -88,9 +116,10 @@ Notes:
       const serviceFileName = `${toKebabCase(className.replace(/Service$/, ''))}.service.ts`;
       const serviceFilePath = path.join(wsDir, serviceFileName);
 
-      const injectable: InjectableConfig = options.service
-        ? { kind: 'bare' }
-        : { kind: 'providedIn', value: parseProvidedIn(options.providedIn) };
+      const injectable: InjectableConfig =
+        options.decorator === 'service'
+          ? { kind: 'service' }
+          : { kind: 'providedIn', value: parseProvidedIn(options.providedIn) };
 
       await mkdir(wsDir, { recursive: true });
 
@@ -102,6 +131,9 @@ Notes:
         modelsDir,
         modelRegistry,
         injectable,
+        injectionPattern: options.injection,
+        doc: options.doc,
+        visibility: options.visibility,
       });
 
       console.log(`Generated ${models.length} model(s) in ${path.relative(process.cwd(), modelsDir)}`);

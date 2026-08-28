@@ -15,8 +15,11 @@ import { resolveTypeExpression } from './type-mapper.js';
 export const HTTP_METHODS: HttpMethod[] = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'];
 export const BODYLESS_METHODS = new Set<HttpMethod>(['get', 'delete', 'head', 'options']);
 
-/** `bare` renders `@Injectable()`; `providedIn` renders `@Injectable({ providedIn: <value> })`, `null` becoming the literal `null`. */
-export type InjectableConfig = { kind: 'bare' } | { kind: 'providedIn'; value: string | null };
+/** `providedIn` renders `@Injectable({ providedIn: <value> })`, `null` becoming the literal `null`; `service` renders a bare `@Service()`. */
+export type InjectableConfig = { kind: 'providedIn'; value: string | null } | { kind: 'service' };
+
+/** `constructor` uses classic constructor-parameter injection; `inject` uses Angular's `inject()` function as a field initializer. */
+export type InjectionPattern = 'constructor' | 'inject';
 
 export interface ServiceGenerationOptions {
   className: string;
@@ -24,6 +27,11 @@ export interface ServiceGenerationOptions {
   modelsDir: string;
   modelRegistry: Map<string, ModelRegistryEntry>;
   injectable: InjectableConfig;
+  injectionPattern?: InjectionPattern;
+  /** Emit a TSDoc comment from each operation's `description`. Default: `true`. */
+  doc?: boolean;
+  /** Prefix generated methods with an explicit `public` modifier. Default: `false`. */
+  visibility?: boolean;
 }
 
 interface CollectedOperation {
@@ -37,10 +45,12 @@ export async function generateService(doc: OpenApiDocument, options: ServiceGene
   const usedNames = new Set<string>();
   const refs = new Set<string>();
   let usesParamsHelper = false;
+  const includeDoc = options.doc ?? true;
+  const explicitVisibility = options.visibility ?? false;
 
   const methods = operations.map(({ method, pathKey, operation }) => {
     const name = uniqueOperationName(usedNames, operationName(method, pathKey, operation.operationId));
-    const built = buildMethod(doc, method, pathKey, operation, name, refs);
+    const built = buildMethod(doc, method, pathKey, operation, name, refs, includeDoc, explicitVisibility);
     usesParamsHelper = usesParamsHelper || built.usesParams;
     return built.code;
   });
@@ -62,6 +72,7 @@ export async function generateService(doc: OpenApiDocument, options: ServiceGene
     methods,
     usesParamsHelper,
     options.injectable,
+    options.injectionPattern ?? 'inject',
   );
 
   await mkdir(path.dirname(options.filePath), { recursive: true });
@@ -88,6 +99,8 @@ function buildMethod(
   operation: OperationObject,
   name: string,
   refs: Set<string>,
+  includeDoc: boolean,
+  explicitVisibility: boolean,
 ): { code: string; usesParams: boolean } {
   const parameters = (operation.parameters ?? [])
     .map((parameter) => deref<ParameterObject>(doc, parameter))
@@ -128,10 +141,24 @@ function buildMethod(
     : `this.http.${method}${genericArg}(${url}, ${bodyType ? 'body' : 'null'}${paramsArg})`;
 
   const returnType = `Observable<${responseType ?? 'void'}>`;
+  const modifier = explicitVisibility ? 'public ' : '';
 
-  const code = [`  ${name}(${args.join(', ')}): ${returnType} {`, `    return ${call};`, '  }'].join('\n');
+  const lines = [`  ${modifier}${name}(${args.join(', ')}): ${returnType} {`, `    return ${call};`, '  }'];
+  const description = operation.description?.trim();
+  if (includeDoc && description) {
+    lines.unshift(renderJsDoc(description, '  '));
+  }
+  const code = lines.join('\n');
 
   return { code, usesParams };
+}
+
+function renderJsDoc(description: string, indent: string): string {
+  const lines = description.split('\n').map((line) => line.trim());
+  if (lines.length === 1) {
+    return `${indent}/** ${lines[0]} */`;
+  }
+  return [`${indent}/**`, ...lines.map((line) => `${indent} * ${line}`), `${indent} */`].join('\n');
 }
 
 function pickResponseSchema(doc: OpenApiDocument, operation: OperationObject): SchemaObject | undefined {
@@ -190,13 +217,22 @@ function renderServiceFile(
   methods: string[],
   usesParamsHelper: boolean,
   injectable: InjectableConfig,
+  injectionPattern: InjectionPattern,
 ): string {
+  const decoratorName = injectable.kind === 'service' ? 'Service' : 'Injectable';
+  const coreImports = injectionPattern === 'inject' ? [decoratorName, 'inject'] : [decoratorName];
+
   const imports = [
     `import { HttpClient } from '@angular/common/http';`,
-    `import { Injectable } from '@angular/core';`,
+    `import { ${coreImports.join(', ')} } from '@angular/core';`,
     `import type { Observable } from 'rxjs';`,
     ...modelImports,
   ];
+
+  const httpField =
+    injectionPattern === 'inject'
+      ? '  private readonly http = inject(HttpClient);'
+      : '  constructor(private readonly http: HttpClient) {}';
 
   const parts: string[] = [
     imports.join('\n'),
@@ -205,7 +241,7 @@ function renderServiceFile(
     `export class ${className} {`,
     `  private readonly basePath = '${basePath}';`,
     '',
-    '  constructor(private readonly http: HttpClient) {}',
+    httpField,
     '',
     methods.join('\n\n'),
   ];
@@ -220,8 +256,8 @@ function renderServiceFile(
 }
 
 function renderInjectableDecorator(injectable: InjectableConfig): string {
-  if (injectable.kind === 'bare') {
-    return '@Injectable()';
+  if (injectable.kind === 'service') {
+    return '@Service()';
   }
   const value = injectable.value === null ? 'null' : `'${injectable.value}'`;
   return `@Injectable({ providedIn: ${value} })`;
